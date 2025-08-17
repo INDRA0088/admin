@@ -1,0 +1,4 @@
+[[redirects]]
+from = "/*"
+to = "/COURSE ACCESS.html,ADMIN PANEL.html"
+status = 200

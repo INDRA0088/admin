@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Manage Payment IDs</title>
+    <link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/pw/AP1GczNty6_2Cq0hySwk_JWjLVcINZz0lyqfq9BNLXjr9-qhG_94UV7oQLhTNB7VtAP8qM1G06Gj36pEqbZyvBWZlV4508OriC45KwQoabQ8qSRc5HHMGPVu=w2400?source=screenshot.guru">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+        h1, h2, h3 {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-200">
+
+    <header class="bg-gray-900 text-white p-4 shadow-lg">
+        <div class="container mx-auto">
+            <h1 class="text-3xl font-bold text-center">Admin Dashboard</h1>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Manual and Bulk Management -->
+        <div class="bg-white p-8 rounded-lg shadow-xl">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Manage Valid Payment IDs</h2>
+            
+            <!-- Add Single Payment ID Form -->
+            <div class="mb-8 pb-8 border-b">
+                <h3 class="text-xl font-semibold mb-4">Add New Payment ID</h3>
+                <form id="add-id-form" class="flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="new-payment-id" class="flex-grow px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Enter new Razorpay Transaction ID" required>
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                        <i class="fas fa-plus mr-2"></i>Add ID
+                    </button>
+                </form>
+            </div>
+
+            <!-- AI Bulk Add -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold mb-4 text-blue-600">✨ AI Bulk Add IDs</h3>
+                <form id="bulk-add-form">
+                    <textarea id="bulk-ids-input" rows="5" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Paste a list of emails, notes, and transaction IDs here. The AI will find and add only the IDs."></textarea>
+                    <button type="submit" id="bulk-add-btn" class="w-full mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center">
+                        <i class="fas fa-magic-sparkles mr-2"></i>Extract and Add IDs
+                    </button>
+                </form>
+            </div>
+             <p id="add-message" class="text-sm mt-2 text-center h-5"></p>
+
+        </div>
+
+        <!-- ID List and AI Generation -->
+        <div class="bg-white p-8 rounded-lg shadow-xl">
+             <!-- AI Test ID Generation -->
+            <div class="mb-8 pb-8 border-b">
+                <h3 class="text-xl font-semibold mb-4 text-purple-600">✨ Generate Test IDs</h3>
+                <form id="generate-ids-form" class="flex flex-col sm:flex-row gap-4">
+                    <input type="number" id="generate-count" min="1" max="20" value="5" class="w-full sm:w-1/2 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required>
+                    <button type="submit" id="generate-ids-btn" class="w-full sm:w-1/2 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center">
+                        <i class="fas fa-cogs mr-2"></i>Generate & Add
+                    </button>
+                </form>
+            </div>
+            
+            <!-- List of Payment IDs -->
+            <div>
+                <h3 class="text-xl font-semibold mb-4">Current Valid IDs (<span id="id-count">0</span>)</h3>
+                <div id="id-list-container" class="relative">
+                    <div id="id-list-loader" class="absolute inset-0 bg-white bg-opacity-75 hidden items-center justify-center">
+                        <div class="loader"></div>
+                    </div>
+                    <div id="id-list" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        <!-- IDs will be dynamically inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM Elements
+            const addIdForm = document.getElementById('add-id-form');
+            const newPaymentIdInput = document.getElementById('new-payment-id');
+            const addMessage = document.getElementById('add-message');
+            const idList = document.getElementById('id-list');
+            const idCount = document.getElementById('id-count');
+            const bulkAddForm = document.getElementById('bulk-add-form');
+            const bulkIdsInput = document.getElementById('bulk-ids-input');
+            const bulkAddBtn = document.getElementById('bulk-add-btn');
+            const generateIdsForm = document.getElementById('generate-ids-form');
+            const generateCountInput = document.getElementById('generate-count');
+            const generateIdsBtn = document.getElementById('generate-ids-btn');
+            const idListLoader = document.getElementById('id-list-loader');
+
+            let validPaymentIds = JSON.parse(localStorage.getItem('validPaymentIds')) || [];
+
+            function saveIds() {
+                localStorage.setItem('validPaymentIds', JSON.stringify(validPaymentIds));
+            }
+
+            function renderIds() {
+                idList.innerHTML = '';
+                idCount.textContent = validPaymentIds.length;
+                if (validPaymentIds.length === 0) {
+                    idList.innerHTML = '<p class="text-gray-500">No payment IDs have been added yet.</p>';
+                    return;
+                }
+                validPaymentIds.forEach(id => {
+                    const idElement = document.createElement('div');
+                    idElement.className = 'flex justify-between items-center bg-gray-100 p-3 rounded-lg animate-fade-in';
+                    idElement.innerHTML = `
+                        <span class="font-mono text-gray-700">${id}</span>
+                        <button data-id="${id}" class="remove-btn text-red-500 hover:text-red-700 font-bold text-xl">
+                            &times;
+                        </button>
+                    `;
+                    idList.appendChild(idElement);
+                });
+            }
+            
+            function showLoader(button, text) {
+                button.disabled = true;
+                button.innerHTML = `<div class="loader"></div><span class="ml-2">${text}</span>`;
+            }
+
+            function hideLoader(button, originalHtml) {
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+            }
+
+            // --- Manual Add Logic ---
+            addIdForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newId = newPaymentIdInput.value.trim();
+                if (newId) {
+                    if (validPaymentIds.includes(newId)) {
+                        showMessage('This ID has already been added.', 'yellow');
+                    } else {
+                        validPaymentIds.push(newId);
+                        saveIds();
+                        renderIds();
+                        newPaymentIdInput.value = '';
+                        showMessage('Successfully added new payment ID!', 'green');
+                    }
+                }
+            });
+            
+            // --- Remove Logic ---
+            idList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-btn')) {
+                    const idToRemove = e.target.dataset.id;
+                    validPaymentIds = validPaymentIds.filter(id => id !== idToRemove);
+                    saveIds();
+                    renderIds();
+                    showMessage('Payment ID removed.', 'red');
+                }
+            });
+
+            // --- Gemini API Call ---
+            async function callGeminiApi(prompt, retries = 3, delay = 1000) {
+                const apiKey = "AIzaSyCODRIZL8mNqWpUf0HdWcoCedimZM_0G5E"; // Canvas will provide the key
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                        const result = await response.json();
+                        if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                            return result.candidates[0].content.parts[0].text;
+                        } else {
+                            throw new Error("Invalid response structure from Gemini API");
+                        }
+                    } catch (error) {
+                        if (i === retries - 1) throw error;
+                        await new Promise(res => setTimeout(res, delay * Math.pow(2, i)));
+                    }
+                }
+            }
+            
+            // --- AI Bulk Add Logic ---
+            bulkAddForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const bulkText = bulkIdsInput.value.trim();
+                if (!bulkText) return;
+
+                const originalBtnHtml = bulkAddBtn.innerHTML;
+                showLoader(bulkAddBtn, 'Extracting...');
+
+                const prompt = `From the following text, extract all strings that look like Razorpay Transaction IDs. A Razorpay ID starts with "pay_" followed by alphanumeric characters. Return only a comma-separated list of the valid IDs. Text: "${bulkText}"`;
+
+                try {
+                    const result = await callGeminiApi(prompt);
+                    const extractedIds = result.split(',').map(id => id.trim()).filter(id => id.startsWith('pay_'));
+                    
+                    let addedCount = 0;
+                    extractedIds.forEach(id => {
+                        if (!validPaymentIds.includes(id)) {
+                            validPaymentIds.push(id);
+                            addedCount++;
+                        }
+                    });
+
+                    if (addedCount > 0) {
+                        saveIds();
+                        renderIds();
+                        showMessage(`${addedCount} new ID(s) extracted and added.`, 'green');
+                    } else {
+                        showMessage('No new, unique IDs were found to add.', 'yellow');
+                    }
+                    bulkIdsInput.value = '';
+
+                } catch (error) {
+                    console.error("Error with Gemini API:", error);
+                    showMessage('AI extraction failed. Please try again.', 'red');
+                } finally {
+                    hideLoader(bulkAddBtn, originalBtnHtml);
+                }
+            });
+
+            // --- AI Generate Test IDs Logic ---
+            generateIdsForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const count = generateCountInput.value;
+                
+                const originalBtnHtml = generateIdsBtn.innerHTML;
+                showLoader(generateIdsBtn, 'Generating...');
+
+                const prompt = `Generate ${count} unique, realistic but fake Razorpay Transaction IDs. A Razorpay ID starts with "pay_" followed by 14 alphanumeric characters. Return only a comma-separated list.`;
+
+                try {
+                    const result = await callGeminiApi(prompt);
+                    const generatedIds = result.split(',').map(id => id.trim()).filter(Boolean);
+
+                    let addedCount = 0;
+                    generatedIds.forEach(id => {
+                        if (!validPaymentIds.includes(id)) {
+                            validPaymentIds.push(id);
+                            addedCount++;
+                        }
+                    });
+
+                    if (addedCount > 0) {
+                        saveIds();
+                        renderIds();
+                        showMessage(`${addedCount} new test ID(s) generated and added.`, 'green');
+                    } else {
+                        showMessage('Could not generate new, unique test IDs.', 'yellow');
+                    }
+                } catch (error) {
+                    console.error("Error with Gemini API:", error);
+                    showMessage('AI generation failed. Please try again.', 'red');
+                } finally {
+                    hideLoader(generateIdsBtn, originalBtnHtml);
+                }
+            });
+
+            function showMessage(message, color) {
+                addMessage.textContent = message;
+                addMessage.className = `text-sm mt-2 text-center h-5 text-${color}-600`;
+                setTimeout(() => {
+                    addMessage.textContent = '';
+                }, 4000);
+            }
+
+            // Initial render
+            renderIds();
+        });
+    </script>
+</body>
+</html>
